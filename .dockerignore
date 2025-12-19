@@ -1,29 +1,22 @@
-# Dependency directories
 node_modules
 npm-debug.log
 
-# Build outputs
 dist
 build
 
-# Environment variables (NEVER bake secrets into an image)
 .env
 .env.production
 .env.test
 
-# Version control
 .git
 .gitignore
 
-# Docker specific
 docker-compose.yml
 .dockerignore
 
-# Testing and Coverage
 coverage
 junit.xml
 
-# IDE settings
 .vscode
 .idea
 *.swp
