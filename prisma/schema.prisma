@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. THE ACCOUNT (The "Bucket")
+model Account {
+  id             String   @id @default(uuid())
+  name           String
+  currency       String
+  balance        BigInt   @default(0)
+  allowOverdraft Boolean  @default(false)
+  entries        Entry[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// 2. THE TRANSACTION (The "Receipt")
+model Transaction {
+  id             String   @id @default(uuid())
+  reference      String
+  currency       String
+  targetCurrency String?
+  exchangeRate   Float?   @default(1.0)
+  description    String?
+  status         TxStatus @default(POSTED)
+  idempotencyKey String?  @unique
+  entries        Entry[]
+  createdAt      DateTime @default(now())
+}
+
+// 3. THE ENTRY (The "Movement")
+model Entry {
+  id            String      @id @default(uuid())
+  amount        BigInt
+  accountId     String
+  account       Account     @relation(fields: [accountId], references: [id])
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  createdAt     DateTime    @default(now())
+  
+  @@index([accountId])
+}
+
+enum TxStatus {
+  PENDING
+  POSTED
+  ARCHIVED
+  FAILED
+}

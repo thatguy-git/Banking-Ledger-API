@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+    # The Database
+    postgres:
+        image: postgres:15-alpine
+        container_name: ledger_db
+        restart: always
+        environment:
+            POSTGRES_USER: admin
+            POSTGRES_PASSWORD: password123
+            POSTGRES_DB: banking_ledger
+        ports:
+            - '5432:5432'
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+
+    # A GUI to view your Database (Optional but helpful)
+    adminer:
+        image: adminer
+        restart: always
+        ports:
+            - '8080:8080'
+        environment:
+            ADMINER_DEFAULT_SERVER: postgres
+
+volumes:
+    postgres_data:
