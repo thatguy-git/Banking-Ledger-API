@@ -37,4 +37,28 @@ export class TransferController {
             });
         }
     }
+
+    static async deposit(req: Request, res: Response) {
+        try {
+            const { accountId, amount } = req.body;
+
+            if (!accountId || !amount) {
+                return res
+                    .status(400)
+                    .json({ error: 'accountId and amount are required' });
+            }
+
+            // Call the service (which now handles the FX cache logic automatically)
+            const result = await TransferService.depositFunds(
+                accountId,
+                BigInt(amount),
+                `DEP-${Date.now()}`
+            );
+
+            res.status(200).json({ success: true, data: result });
+        } catch (error: any) {
+            console.error('Deposit Error:', error.message);
+            res.status(500).json({ success: false, error: error.message });
+        }
+    }
 }
