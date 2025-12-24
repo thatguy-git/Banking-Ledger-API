@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { TransferController } from '../controllers/transfer.controller.js';
+import { authenticateToken } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-router.post('/', TransferController.transfer);
-router.post('/deposit', TransferController.deposit);
+router.post('/', authenticateToken, TransferController.transfer);
+router.post('/deposit', authenticateToken, TransferController.deposit);
 
 export default router;

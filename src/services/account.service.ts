@@ -6,20 +6,18 @@ type EntryWithTransaction = Prisma.EntryGetPayload<{
 }>;
 
 export class AccountService {
-    static async createAccount(name: string, currency: string) {
-        return await prisma.account.create({
-            data: {
-                name,
-                currency,
-                balance: 0n,
-                allowOverdraft: false,
-            },
-        });
-    }
-
     static async getAccount(id: string) {
         return await prisma.account.findUniqueOrThrow({
             where: { id },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                currency: true,
+                balance: true,
+                allowOverdraft: true,
+                createdAt: false,
+            },
         });
     }
 
@@ -43,5 +41,20 @@ export class AccountService {
             date: entry.transaction.createdAt,
             type: entry.amount > 0n ? 'CREDIT' : 'DEBIT',
         }));
+    }
+
+    static async getBalance(id: string) {
+        const account = await prisma.account.findUniqueOrThrow({
+            where: { id },
+            select: {
+                balance: true,
+                currency: true,
+            },
+        });
+
+        return {
+            balance: account.balance.toString(),
+            currency: account.currency,
+        };
     }
 }

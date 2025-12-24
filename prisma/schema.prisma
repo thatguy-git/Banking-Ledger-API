@@ -10,13 +10,21 @@ datasource db {
 // 1. THE ACCOUNT (The "Bucket")
 model Account {
   id             String   @id @default(uuid())
+  accountNumber  String   @unique
+  email          String   @unique
   name           String
   currency       String
-  balance        BigInt   @default(0)
+  balance        BigInt
   allowOverdraft Boolean  @default(false)
-  entries        Entry[]
+  passwordHash       String   
+  pinHash            String  
+  securityQuestion   String  
+  securityAnswerHash String   
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  sentTransfers     Transaction[] @relation("sender")
+  receivedTransfers Transaction[] @relation("receiver")
+  entries           Entry[]
 }
 
 // 2. THE TRANSACTION (The "Receipt")
@@ -27,6 +35,10 @@ model Transaction {
   targetCurrency String?
   exchangeRate   Float?   @default(1.0)
   description    String?
+  fromAccount   Account @relation("sender", fields: [fromAccountId], references: [id])
+  fromAccountId String
+  toAccount     Account @relation("receiver", fields: [toAccountId], references: [id])
+  toAccountId   String
   status         TxStatus @default(POSTED)
   idempotencyKey String?  @unique
   entries        Entry[]

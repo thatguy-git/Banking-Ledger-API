@@ -1,7 +1,7 @@
 // load-test.ts
 
 // ⚠️ REPLACE THIS ID with your real Charlie (EUR) or Bob (USD) ID
-const TARGET_ACCOUNT_ID = '28309cfa-cbe1-4afa-b1c2-e148cfff5a7e';
+const TARGET_ACCOUNT_ID = 'b3561db3-4a38-403b-a3c9-5941b431b7fc';
 
 const run = async () => {
     console.log('🚀 Firing 5 simultaneous deposit requests...');
@@ -16,7 +16,7 @@ const run = async () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     accountId: TARGET_ACCOUNT_ID,
-                    amount: 100, // 1.00 unit
+                    amount: 10000, // 1.00 unit
                 }),
             });
 

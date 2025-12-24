@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import transferRoutes from './routes/transfer.routes.js';
 import accountRoutes from './routes/account.routes.js';
+import authRoutes from './routes/auth.routes.js';
 
 const app = express();
 
@@ -12,5 +13,6 @@ app.get('/health', (req: Request, res: Response) => {
 });
 app.use('/transfer', transferRoutes);
 app.use('/accounts', accountRoutes);
+app.use('/auth', authRoutes);
 
 export default app;
