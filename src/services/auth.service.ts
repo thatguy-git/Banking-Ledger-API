@@ -57,9 +57,9 @@ export class AuthService {
         if (!isValid) throw new Error('Invalid credentials');
 
         const token = jwt.sign(
-            { Id: user.id, accountNumber: user.accountNumber },
+            { id: user.id, accountNumber: user.accountNumber },
             JWT_SECRET,
-            { expiresIn: '2m' }
+            { expiresIn: '1hr' }
         );
 
         return {

@@ -1,26 +1,24 @@
 import { Request, Response } from 'express';
 import { TransferService } from '../services/transfer.service.js';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware.js';
+import { prisma } from '../database/client.js';
 
 export class TransferController {
     static async transfer(req: Request, res: Response) {
+        const authReq = req as AuthenticatedRequest;
+        const senderId = authReq.user.id;
         try {
-            const {
-                fromAccountId,
-                toAccountNumber,
-                amount,
-                description,
-                reference,
-            } = req.body;
+            const { toAccountNumber, amount, description, reference } =
+                req.body;
 
-            if (!fromAccountId || !toAccountNumber || !amount) {
+            if (!senderId || !toAccountNumber || !amount) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Missing required fields: fromAccountId, toAccountNumber, or amount',
+                    error: 'Missing required fields: senderId, toAccountNumber, or amount',
                 });
             }
             const result = await TransferService.transferFunds({
-                fromAccountId,
+                senderId,
                 toAccountNumber,
                 amount: BigInt(amount),
                 description,
@@ -41,16 +39,19 @@ export class TransferController {
 
     static async deposit(req: Request, res: Response) {
         try {
-            const { toAccountNumber, amount } = req.body;
-            const senderId = (req as AuthenticatedRequest).user.id;
+            const { amount } = req.body;
+            const authReq = req as AuthenticatedRequest;
+            const userId = authReq.user.id;
 
-            if (!toAccountNumber || !amount) {
-                return res
-                    .status(400)
-                    .json({ error: 'toAccountNumber and amount are required' });
-            }
+            const userAccount = await prisma.account.findUnique({
+                where: { id: userId },
+            });
+
+            if (!userAccount)
+                return res.status(404).json({ error: 'Account not found' });
+
             const result = await TransferService.depositFunds({
-                toAccountNumber: toAccountNumber,
+                toAccountNumber: userAccount.accountNumber,
                 amount: BigInt(amount),
                 reference: `DEP-${Date.now()}`,
             });

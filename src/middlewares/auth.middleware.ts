@@ -19,9 +19,8 @@ export interface AuthenticatedRequest extends Request {
         accountNumber?: string;
     };
 }
-
 export const authenticateToken = (
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
 ) => {
@@ -29,15 +28,20 @@ export const authenticateToken = (
     const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
-        return res
-            .status(401)
-            .json({ error: 'Access Denied: No Token Provided' });
+        res.status(401).json({ error: 'Access Denied: No Token Provided' });
+        return;
     }
+
     try {
         const decoded = jwt.verify(token, JWT_SECRET) as UserPayload;
-        req.user = { id: decoded.id, accountNumber: decoded.accountNumber };
+        (req as AuthenticatedRequest).user = {
+            id: decoded.id,
+            accountNumber: decoded.accountNumber,
+        };
+
         next();
     } catch (error) {
         res.status(403).json({ error: 'Invalid or Expired Token' });
+        return;
     }
 };

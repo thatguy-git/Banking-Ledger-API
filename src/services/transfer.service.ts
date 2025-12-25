@@ -2,7 +2,7 @@ import { prisma } from '../database/client.js';
 import { ExchangeService } from './exchange.service.js';
 
 interface TransferInput {
-    fromAccountId: string;
+    senderId: string;
     toAccountNumber: string;
     amount: bigint;
     description?: string;
@@ -17,19 +17,13 @@ interface DepositInput {
 
 export class TransferService {
     static async transferFunds(input: TransferInput) {
-        const {
-            fromAccountId,
-            toAccountNumber,
-            amount,
-            description,
-            reference,
-        } = input;
+        const { senderId, toAccountNumber, amount, description, reference } =
+            input;
 
         if (amount <= 0) {
             throw new Error('Transfer amount must be positive');
         }
 
-        // A. Resolve Recipient: Account Number -> UUID
         const recipient = await prisma.account.findUnique({
             where: { accountNumber: toAccountNumber },
         });
@@ -38,17 +32,15 @@ export class TransferService {
             throw new Error('Recipient account number not found');
         }
 
-        const toAccountId = recipient.id; // 👈 Found the UUID!
+        const toAccountId = recipient.id;
 
-        // B. Safety Checks
-        if (fromAccountId === toAccountId) {
+        if (senderId === toAccountId) {
             throw new Error('Cannot transfer to the same account');
         }
 
-        // C. Perform Transaction (using UUIDs)
         return await prisma.$transaction(async (tx: any) => {
             const sender = await tx.account.findUniqueOrThrow({
-                where: { id: fromAccountId },
+                where: { id: senderId },
             });
 
             if (!sender.allowOverdraft && sender.balance < amount) {
@@ -57,19 +49,16 @@ export class TransferService {
                 );
             }
 
-            // 1. Decrement Sender
             await tx.account.update({
-                where: { id: fromAccountId },
+                where: { id: senderId },
                 data: { balance: { decrement: amount } },
             });
 
-            // 2. Increment Recipient
             await tx.account.update({
                 where: { id: toAccountId },
                 data: { balance: { increment: amount } },
             });
 
-            // 3. Log the Transaction
             return await tx.transaction.create({
                 data: {
                     reference: reference || `REF-${Date.now()}`,
@@ -78,7 +67,7 @@ export class TransferService {
                     status: 'POSTED',
                     entries: {
                         create: [
-                            { accountId: fromAccountId, amount: -amount },
+                            { accountId: senderId, amount: -amount },
                             { accountId: toAccountId, amount: amount },
                         ],
                     },
@@ -148,6 +137,8 @@ export class TransferService {
                 data: {
                     reference: reference || `DEP-FX-${Date.now()}`,
                     currency: bank.currency,
+                    fromAccountId: bankId,
+                    toAccountId: toAccountId,
                     targetCurrency: userPreview.currency,
                     exchangeRate: exchangeRate,
                     description: `Treasury Deposit (${exchangeRate} rate)`,

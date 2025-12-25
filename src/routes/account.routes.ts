@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { AccountController } from '../controllers/account.controller.js';
+import { authenticateToken } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-router.get('/:id', AccountController.getAccount);
-router.get('/:id/balance', AccountController.getAccountBalance);
+router.get('/', authenticateToken, AccountController.getAccount);
+router.get('/balance', authenticateToken, AccountController.getAccountBalance);
+router.get('/history', authenticateToken, AccountController.getAccountHistory);
 
 export default router;
