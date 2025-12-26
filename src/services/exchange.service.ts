@@ -6,62 +6,81 @@ interface RateCache {
 export class ExchangeService {
     private static cache: RateCache | null = null;
     private static CACHE_TTL_MS = 60 * 1000;
-
-    // 👇 NEW: This holds the "In-Flight" request
     private static fetchPromise: Promise<void> | null = null;
 
     static async getLiveRate(from: string, to: string): Promise<number> {
-        if (from === to) return 1.0;
+        // 1. Normalize Inputs (Fixes "USD " vs "USD" issues)
+        const base = from.trim().toUpperCase();
+        const target = to.trim().toUpperCase();
 
-        // 1. Check if cache is expired
+        console.log(`💱 Exchange Service called: ${base} -> ${target}`);
+
+        // 2. Immediate Return if identical
+        if (base === target) {
+            console.log(`ℹ️ Currencies are identical. Returning 1.0`);
+            return 1.0;
+        }
+
+        // 3. Check Cache
         const now = Date.now();
         const isCacheExpired =
             !this.cache || now - this.cache.timestamp > this.CACHE_TTL_MS;
 
         if (isCacheExpired) {
-            // 2. THE FIX: Check if someone is ALREADY fetching
+            console.log(`⏳ Cache expired or empty. Refreshing...`);
             if (!this.fetchPromise) {
-                // If not, WE start the fetch and save the promise so others can see it
                 this.fetchPromise = this.refreshRates();
             }
-
-            // 3. Everyone (including the first one) waits for the SAME promise
-            try {
-                await this.fetchPromise;
-            } finally {
-                // (Optional) We could clear the promise here, but refreshRates handles the cache update.
-                // We generally leave this logic to the refresh method or clear it if needed.
-            }
+            // Wait for the specific promise to resolve
+            await this.fetchPromise;
         }
 
-        // 4. Calculate Rate (Same as before)
-        // If the API failed, we might still be using old cache (circuit breaker)
+        // 4. Safety Check
         if (!this.cache) {
-            throw new Error('Exchange rates unavailable.');
+            throw new Error('Exchange rates could not be fetched.');
         }
 
+        // 5. Calculate Rate
         const rates = this.cache.rates;
-        const rateFrom = from === 'USD' ? 1.0 : rates[from];
-        const rateTo = to === 'USD' ? 1.0 : rates[to];
+
+        // Frankfurter API is base USD by default in our refreshRates call
+        const rateFrom = base === 'USD' ? 1.0 : rates[base];
+        const rateTo = target === 'USD' ? 1.0 : rates[target];
+
+        console.log(
+            `📊 Lookup: [${base}: ${rateFrom}] -> [${target}: ${rateTo}]`
+        );
 
         if (!rateFrom || !rateTo) {
-            throw new Error(`Rate not available for pair ${from}-${to}`);
+            console.error(
+                `❌ Missing rate data in cache for ${base} or ${target}`
+            );
+            console.log(
+                'Available Keys:',
+                Object.keys(rates).slice(0, 5),
+                '...'
+            );
+            throw new Error(`Rate not available for pair ${base}-${target}`);
         }
 
-        return rateTo / rateFrom;
+        const finalRate = rateTo / rateFrom;
+        console.log(`✅ Final Calculated Rate: ${finalRate}`);
+
+        return finalRate;
     }
 
     private static async refreshRates() {
-        // Note: We don't log "Cache expired" here anymore to avoid spamming
-        // if multiple people are waiting.
-
         try {
-            console.log('📡 Fetching fresh rates from API...'); // This should run ONCE
-
+            console.log(
+                '📡 API Call: https://api.frankfurter.app/latest?from=USD'
+            );
             const response = await fetch(
                 'https://api.frankfurter.app/latest?from=USD'
             );
-            if (!response.ok) throw new Error('API Failed');
+
+            if (!response.ok) {
+                throw new Error(`API returned status: ${response.status}`);
+            }
 
             const data = (await response.json()) as any;
 
@@ -69,13 +88,16 @@ export class ExchangeService {
                 rates: data.rates,
                 timestamp: Date.now(),
             };
-
-            console.log('✅ Rates updated.');
+            console.log(
+                `💾 Cache updated with ${
+                    Object.keys(data.rates).length
+                } currencies.`
+            );
         } catch (error) {
             console.error('⚠️ Failed to refresh rates:', error);
-            // If we fail, we clear the promise so the next user can try again
+            // We intentionally do not throw here to allow retries,
+            // but the main method will throw if cache is still null.
         } finally {
-            // ALWAYS clear the promise lock when done, so future expirations can trigger a new fetch
             this.fetchPromise = null;
         }
     }

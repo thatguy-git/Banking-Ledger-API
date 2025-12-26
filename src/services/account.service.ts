@@ -21,26 +21,33 @@ export class AccountService {
         });
     }
 
-    static async getHistory(accountId: string) {
-        const history: EntryWithTransaction[] = await prisma.entry.findMany({
-            where: { accountId },
-            include: {
-                transaction: true,
+    static async getHistory(userId: string, limit = 20, offset = 0) {
+        const transactions = await prisma.transaction.findMany({
+            where: {
+                OR: [{ fromAccountId: userId }, { toAccountId: userId }],
             },
             orderBy: {
-                transaction: { createdAt: 'desc' },
+                createdAt: 'desc',
+            },
+            take: limit,
+            skip: offset,
+            include: {
+                fromAccount: {
+                    select: { accountNumber: true, name: true },
+                },
+                toAccount: {
+                    select: { accountNumber: true, name: true },
+                },
             },
         });
 
-        return history.map((entry) => ({
-            id: entry.id,
-            amount: entry.amount,
-            description: entry.transaction.description,
-            reference: entry.transaction.reference,
-            status: entry.transaction.status,
-            date: entry.transaction.createdAt,
-            type: entry.amount > 0n ? 'CREDIT' : 'DEBIT',
-        }));
+        const total = await prisma.transaction.count({
+            where: {
+                OR: [{ fromAccountId: userId }, { toAccountId: userId }],
+            },
+        });
+
+        return { transactions, total };
     }
 
     static async getBalance(id: string) {

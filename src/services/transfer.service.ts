@@ -28,11 +28,34 @@ export class TransferService {
             where: { accountNumber: toAccountNumber },
         });
 
+        const sender = await prisma.account.findUnique({
+            where: { id: senderId },
+        });
+
+        if (!sender) {
+            throw new Error('Sender account not found');
+        }
+
         if (!recipient) {
             throw new Error('Recipient account number not found');
         }
 
         const toAccountId = recipient.id;
+
+        let exchangeRate = 1.0;
+        console.log(
+            `Comparing '${sender.currency}' vs '${recipient.currency}'`
+        );
+        if (sender.currency !== recipient.currency) {
+            exchangeRate = await ExchangeService.getLiveRate(
+                sender.currency,
+                recipient.currency
+            );
+        }
+
+        const debitAmount = amount;
+        const bankCostFloat = Number(amount) / exchangeRate;
+        const creditAmount = BigInt(Math.ceil(bankCostFloat));
 
         if (senderId === toAccountId) {
             throw new Error('Cannot transfer to the same account');
@@ -49,22 +72,32 @@ export class TransferService {
                 );
             }
 
+            if (sender.balance < debitAmount) {
+                throw new Error(
+                    `Insufficient Funds! Needs ${debitAmount} ${sender.currency}`
+                );
+            }
+
             await tx.account.update({
                 where: { id: senderId },
-                data: { balance: { decrement: amount } },
+                data: { balance: { decrement: debitAmount } },
             });
 
             await tx.account.update({
                 where: { id: toAccountId },
-                data: { balance: { increment: amount } },
+                data: { balance: { increment: creditAmount } },
             });
 
             return await tx.transaction.create({
                 data: {
                     reference: reference || `REF-${Date.now()}`,
                     currency: sender.currency,
+                    exchangeRate: exchangeRate,
+                    targetCurrency: recipient.currency,
                     description,
                     status: 'POSTED',
+                    fromAccountId: senderId,
+                    toAccountId: toAccountId,
                     entries: {
                         create: [
                             { accountId: senderId, amount: -amount },
