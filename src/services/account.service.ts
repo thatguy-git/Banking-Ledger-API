@@ -38,6 +38,7 @@ export class AccountService {
                 toAccount: {
                     select: { accountNumber: true, name: true },
                 },
+                entries: true,
             },
         });
 

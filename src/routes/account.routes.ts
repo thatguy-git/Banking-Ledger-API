@@ -6,6 +6,6 @@ const router = Router();
 
 router.get('/', authenticateToken, AccountController.getAccount);
 router.get('/balance', authenticateToken, AccountController.getAccountBalance);
-router.get('/history', authenticateToken, AccountController.getAccountHistory);
+router.get('/history', authenticateToken, AccountController.getLedgerHistory);
 
 export default router;

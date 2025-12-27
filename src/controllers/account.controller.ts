@@ -54,14 +54,14 @@ export class AccountController {
                 const isSender = tx.fromAccountId === userId;
                 return {
                     id: tx.id,
-                    type: isSender ? 'DEBIT' : 'CREDIT', // Did money leave or enter?
+                    type: isSender ? 'DEBIT' : 'CREDIT',
                     amount: tx.entries[0]?.amount
                         ? Math.abs(Number(tx.entries[0].amount))
-                        : 0, // Simplified logic
+                        : 0,
                     currency: tx.currency,
                     counterparty: isSender
                         ? tx.toAccount.name
-                        : tx.fromAccount.name, // Who was on the other side?
+                        : tx.fromAccount.name,
                     description: tx.description,
                     date: tx.createdAt,
                     status: tx.status,
