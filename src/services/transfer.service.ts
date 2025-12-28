@@ -7,6 +7,7 @@ interface TransferInput {
     amount: bigint;
     description?: string;
     reference?: string;
+    idempotencyKey?: string;
 }
 
 interface DepositInput {
@@ -17,8 +18,24 @@ interface DepositInput {
 
 export class TransferService {
     static async transferFunds(input: TransferInput) {
-        const { senderId, toAccountNumber, amount, description, reference } =
-            input;
+        const {
+            senderId,
+            toAccountNumber,
+            amount,
+            description,
+            reference,
+            idempotencyKey,
+        } = input;
+
+        if (idempotencyKey) {
+            const existingTransaction = await prisma.transaction.findUnique({
+                where: { idempotencyKey },
+            });
+
+            if (existingTransaction) {
+                return existingTransaction;
+            }
+        }
 
         if (amount <= 0) {
             throw new Error('Transfer amount must be positive');

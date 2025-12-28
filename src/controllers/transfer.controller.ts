@@ -5,15 +5,23 @@ import { prisma } from '../database/client.js';
 
 export class TransferController {
     static async transfer(req: Request, res: Response) {
+        const idempotencyKey = req.headers['idempotency-key'] as
+            | string
+            | undefined;
         const authReq = req as AuthenticatedRequest;
         const senderId = authReq.user.id;
         try {
             const { toAccountNumber, amount, description, reference } =
                 req.body;
 
+            if (!idempotencyKey) {
+                return res.status(400).json({
+                    error: 'Missing required header: Idempotency-Key',
+                });
+            }
+
             if (!senderId || !toAccountNumber || !amount) {
                 return res.status(400).json({
-                    success: false,
                     error: 'Missing required fields: senderId, toAccountNumber, or amount',
                 });
             }
@@ -23,6 +31,7 @@ export class TransferController {
                 amount: BigInt(amount),
                 description,
                 reference,
+                idempotencyKey,
             });
             res.status(200).json({
                 success: true,
