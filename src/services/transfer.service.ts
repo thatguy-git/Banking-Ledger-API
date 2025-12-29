@@ -16,6 +16,10 @@ interface DepositInput {
     reference?: string;
 }
 
+export const BANK_CONFIG = {
+    MAX_TRANSACTION_LIMIT: BigInt(100000),
+};
+
 export class TransferService {
     static async transferFunds(input: TransferInput) {
         const {
@@ -131,6 +135,12 @@ export class TransferService {
 
         if (amount <= 0) {
             throw new Error('Deposit amount must be positive');
+        }
+
+        if (BigInt(amount) > BANK_CONFIG.MAX_TRANSACTION_LIMIT) {
+            throw new Error(
+                `Transfer limit exceeded. Maximum allowed per transaction is ${BANK_CONFIG.MAX_TRANSACTION_LIMIT}`
+            );
         }
 
         const bankEmail = process.env.BANK_EMAIL;

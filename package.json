@@ -4,7 +4,8 @@
     "description": "",
     "main": "index.js",
     "scripts": {
-        "dev": "nodemon --exec tsx src/server.ts"
+        "dev": "nodemon --exec tsx src/server.ts",
+        "test": "tsx load-test.ts"
     },
     "prisma": {
         "seed": "tsx prisma/seed.ts"
