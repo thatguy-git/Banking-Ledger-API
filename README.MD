@@ -341,29 +341,71 @@ Deposits funds into the authenticated user's account from the central treasury.
 DEPLOYMENT
 This project is configured for easy deployment on Render.com.
 
-Create a PostgreSQL Database on Render
+## Step-by-Step Deployment Guide
 
-Copy the Internal Database URL provided by Render.
+### 1. Prepare Your Project
 
-Create a Web Service on Render
+Ensure your project is ready for deployment:
 
-Connect your GitHub repository.
+-   Add the following scripts to your `package.json` (already done):
+    ```json
+    "scripts": {
+      "build": "tsc",
+      "start": "node dist/server.js"
+    }
+    ```
+-   Commit and push your changes to GitHub.
 
-Runtime: Node
+### 2. Create a PostgreSQL Database on Render
 
-Build Command: npm install && npx prisma generate && npm run build
+1. Go to [Render Dashboard](https://dashboard.render.com/).
+2. Click "New" > "PostgreSQL".
+3. Choose a name (e.g., `banking-ledger-db`).
+4. Select a region (e.g., Oregon).
+5. Click "Create Database".
+6. Wait for the database to be provisioned.
+7. Copy the "Internal Database URL" (it looks like `postgresql://user:password@host:port/dbname`).
 
-Start Command: npm start (or node dist/index.js)
+### 3. Create a Web Service on Render
 
-Environment Variables (in Render Settings) Add the following variables in the "Environment" tab:
+1. In the Render Dashboard, click "New" > "Web Service".
+2. Connect your GitHub repository (select the `banking-ledger` repo).
+3. Configure the service:
+    - **Name:** e.g., `banking-ledger-api`
+    - **Runtime:** Node
+    - **Build Command:** `npm install && npx prisma generate && npm run build`
+    - **Start Command:** `npm start`
+4. In the "Environment" tab, add the following environment variables:
+    - `DATABASE_URL`: Paste the Internal Database URL from step 2.
+    - `JWT_SECRET`: Generate a random string (e.g., use `openssl rand -base64 32` or any secure random string).
+    - `NODE_ENV`: `production`
+    - `BANK_EMAIL`: (Optional, if used in your code; set to a bank account email if needed).
+5. Click "Create Web Service".
 
-DATABASE_URL:
+### 4. Run Database Migrations
 
-JWT_SECRET: (Any random long string)
+After the service is created, you need to apply Prisma migrations:
 
-NODE_ENV: production
+1. In the Render Dashboard, go to your web service.
+2. Open the "Shell" tab.
+3. Run: `npx prisma migrate deploy`
+    - This applies migrations to the production database.
 
-Deploy! Render will build your app, apply migrations (if configured in build script), and start the server.
+### 5. Deploy and Test
+
+-   Render will automatically build and deploy your app.
+-   Once deployed, copy the service URL (e.g., `https://banking-ledger-api.onrender.com`).
+-   Update the "Live Demo" link in your README with this URL.
+-   Test the API endpoints using tools like Postman or curl.
+
+### Troubleshooting
+
+-   **Build Failures:** Check the build logs in Render. Ensure all dependencies are in `package.json`.
+-   **Database Connection:** Verify `DATABASE_URL` is correct and the database is accessible.
+-   **Migrations:** If migrations fail, check your Prisma schema and ensure the database is empty or compatible.
+-   **Environment Variables:** Double-check all required env vars are set.
+
+Deploy! Render will handle scaling, SSL, and monitoring for you.
 
 🧪 Testing
 To run the automated test suite:
