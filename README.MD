@@ -373,7 +373,7 @@ Ensure your project is ready for deployment:
 3. Configure the service:
     - **Name:** e.g., `banking-ledger-api`
     - **Runtime:** Node
-    - **Build Command:** `npm install && npx prisma generate && npm run build`
+    - **Build Command:** `npm install && npx prisma generate && npx prisma migrate deploy && npm run build`
     - **Start Command:** `npm start`
 4. In the "Environment" tab, add the following environment variables:
     - `DATABASE_URL`: Paste the Internal Database URL from step 2.
