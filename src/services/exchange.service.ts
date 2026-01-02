@@ -9,19 +9,16 @@ export class ExchangeService {
     private static fetchPromise: Promise<void> | null = null;
 
     static async getLiveRate(from: string, to: string): Promise<number> {
-        // 1. Normalize Inputs (Fixes "USD " vs "USD" issues)
         const base = from.trim().toUpperCase();
         const target = to.trim().toUpperCase();
 
         console.log(`💱 Exchange Service called: ${base} -> ${target}`);
 
-        // 2. Immediate Return if identical
         if (base === target) {
-            console.log(`ℹ️ Currencies are identical. Returning 1.0`);
+            console.log(`Currencies are identical. Returning 1.0`);
             return 1.0;
         }
 
-        // 3. Check Cache
         const now = Date.now();
         const isCacheExpired =
             !this.cache || now - this.cache.timestamp > this.CACHE_TTL_MS;
@@ -31,29 +28,23 @@ export class ExchangeService {
             if (!this.fetchPromise) {
                 this.fetchPromise = this.refreshRates();
             }
-            // Wait for the specific promise to resolve
             await this.fetchPromise;
         }
 
-        // 4. Safety Check
         if (!this.cache) {
             throw new Error('Exchange rates could not be fetched.');
         }
 
-        // 5. Calculate Rate
         const rates = this.cache.rates;
 
-        // Frankfurter API is base USD by default in our refreshRates call
         const rateFrom = base === 'USD' ? 1.0 : rates[base];
         const rateTo = target === 'USD' ? 1.0 : rates[target];
 
-        console.log(
-            `📊 Lookup: [${base}: ${rateFrom}] -> [${target}: ${rateTo}]`
-        );
+        console.log(`Lookup: [${base}: ${rateFrom}] -> [${target}: ${rateTo}]`);
 
         if (!rateFrom || !rateTo) {
             console.error(
-                `❌ Missing rate data in cache for ${base} or ${target}`
+                `Missing rate data in cache for ${base} or ${target}`
             );
             console.log(
                 'Available Keys:',
@@ -64,7 +55,7 @@ export class ExchangeService {
         }
 
         const finalRate = rateTo / rateFrom;
-        console.log(`✅ Final Calculated Rate: ${finalRate}`);
+        console.log(`Final Calculated Rate: ${finalRate}`);
 
         return finalRate;
     }
@@ -72,7 +63,7 @@ export class ExchangeService {
     private static async refreshRates() {
         try {
             console.log(
-                '📡 API Call: https://api.frankfurter.app/latest?from=USD'
+                'API Call: https://api.frankfurter.app/latest?from=USD'
             );
             const response = await fetch(
                 'https://api.frankfurter.app/latest?from=USD'
@@ -89,12 +80,12 @@ export class ExchangeService {
                 timestamp: Date.now(),
             };
             console.log(
-                `💾 Cache updated with ${
+                `Cache updated with ${
                     Object.keys(data.rates).length
                 } currencies.`
             );
         } catch (error) {
-            console.error('⚠️ Failed to refresh rates:', error);
+            console.error('Failed to refresh rates:', error);
             // We intentionally do not throw here to allow retries,
             // but the main method will throw if cache is still null.
         } finally {

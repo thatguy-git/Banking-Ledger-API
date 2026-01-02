@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-    # The Database
     postgres:
         image: postgres:15-alpine
         container_name: ledger_db
@@ -15,7 +14,6 @@ services:
         volumes:
             - postgres_data:/var/lib/postgresql/data
 
-    # A GUI to view your Database (Optional but helpful)
     adminer:
         image: adminer
         restart: always

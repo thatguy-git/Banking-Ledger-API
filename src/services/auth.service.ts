@@ -26,7 +26,7 @@ export class AuthService {
             if (!existing) {
                 isUnique = true;
             } else {
-                accountNumber = generateAccountNumber(); // Try again
+                accountNumber = generateAccountNumber();
             }
         }
         const { name, email, currency, password, pin, question, answer } = data;
