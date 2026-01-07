@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AccountService } from '../services/account.service.js';
+import { ApiKeyService } from '../services/api-key.service.js';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware.js';
 
 export class AccountController {
@@ -82,6 +83,41 @@ export class AccountController {
             res.status(500).json({
                 error: 'Failed to fetch transaction history',
             });
+        }
+    }
+
+    static async generateApiKey(req: Request, res: Response) {
+        try {
+            const authReq = req as AuthenticatedRequest;
+            const accountId = authReq.user.id;
+            const { name } = req.body;
+
+            const apiKey = await ApiKeyService.generateApiKey(accountId, name);
+
+            res.status(201).json({
+                success: true,
+                data: { apiKey },
+            });
+        } catch (error: any) {
+            console.error('Generate API Key Error:', error.message);
+            res.status(500).json({ error: 'Failed to generate API key' });
+        }
+    }
+
+    static async getApiKeys(req: Request, res: Response) {
+        try {
+            const authReq = req as AuthenticatedRequest;
+            const accountId = authReq.user.id;
+
+            const apiKeys = await ApiKeyService.getApiKeysForAccount(accountId);
+
+            res.status(200).json({
+                success: true,
+                data: apiKeys,
+            });
+        } catch (error: any) {
+            console.error('Get API Keys Error:', error.message);
+            res.status(500).json({ error: 'Failed to fetch API keys' });
         }
     }
 }

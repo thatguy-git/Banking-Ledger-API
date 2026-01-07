@@ -3,6 +3,7 @@ import express, { Request, Response } from 'express';
 import transferRoutes from './routes/transfer.routes.js';
 import accountRoutes from './routes/account.routes.js';
 import authRoutes from './routes/auth.routes.js';
+import invoiceRoutes from './routes/invoice.routes.js';
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.get('/health', (req: Request, res: Response) => {
 app.use('/transfer', transferRoutes);
 app.use('/accounts', accountRoutes);
 app.use('/auth', authRoutes);
+app.use('/invoices', invoiceRoutes);
 
 app.use((req: Request, res: Response) => {
     res.status(404).json({ error: 'Route not found' });

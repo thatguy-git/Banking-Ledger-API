@@ -6,5 +6,6 @@ const router = Router();
 
 router.post('/', authenticateToken, TransferController.transfer);
 router.post('/deposit', authenticateToken, TransferController.deposit);
+router.post('/charge', authenticateToken, TransferController.chargePayment);
 
 export default router;

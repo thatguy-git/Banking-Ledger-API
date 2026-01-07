@@ -16,7 +16,7 @@ async function main() {
     console.log(`Seeding Central Bank: ${email}...`);
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const pinHash = await bcrypt.hash(pin, 10);
+    const transactionPin = await bcrypt.hash(pin, 10);
     const answerHash = await bcrypt.hash('thatguy', 10);
 
     const treasury = await prisma.account.upsert({
@@ -30,7 +30,7 @@ async function main() {
             balance: BigInt(balance),
             allowOverdraft: true,
             passwordHash,
-            pinHash,
+            transactionPin,
             securityQuestion: 'Who created this?',
             securityAnswerHash: answerHash,
         },

@@ -241,6 +241,70 @@ Retrieves the paginated transaction history for the authenticated user.
 
 -   500 Internal Server Error
 
+### Generate API Key
+
+Generates a new API key for the authenticated user's account. This allows external services to authenticate on behalf of the account.
+
+**Endpoint:** `POST /api/accounts/api-keys`
+
+**Headers:**
+
+-   `Authorization: Bearer <token>`
+
+**Request Body:**
+
+```json
+{
+    "name": "string (optional, e.g., 'Ticketing Service')"
+}
+```
+
+**Response (201 Created):**
+
+```json
+{
+    "success": true,
+    "data": {
+        "apiKey": "string (e.g., sk_live_abc123...)"
+    }
+}
+```
+
+**Error Responses:**
+
+-   500 Internal Server Error
+
+### Get API Keys
+
+Retrieves all API keys for the authenticated user's account.
+
+**Endpoint:** `GET /api/accounts/api-keys`
+
+**Headers:**
+
+-   `Authorization: Bearer <token>`
+
+**Response (200 OK):**
+
+```json
+{
+    "success": true,
+    "data": [
+        {
+            "id": "string",
+            "key": "string",
+            "name": "string",
+            "createdAt": "string",
+            "expiresAt": "string"
+        }
+    ]
+}
+```
+
+**Error Responses:**
+
+-   500 Internal Server Error
+
 ## Transfer Operations
 
 All transfer endpoints require authentication.
@@ -337,6 +401,53 @@ Deposits funds into the authenticated user's account from the central treasury.
 -   400 Bad Request: Invalid amount, transfer limit exceeded
 -   404 Not Found: Account not found
 -   500 Internal Server Error
+
+### Charge Payment
+
+Allows authenticated users (buyers) to make payments to sellers (e.g., for ticket purchases). This debits the buyer's account and credits the seller's account.
+
+**Endpoint:** `POST /api/transfer/charge`
+
+**Headers:**
+
+-   `Authorization: Bearer <token>`
+
+**Request Body:**
+
+```json
+{
+    "sellerAccountNumber": "string (seller's account number)",
+    "amount": "number (will be converted to bigint)",
+    "description": "string (optional, e.g., 'Ticket for Event X')",
+    "reference": "string (optional)"
+}
+```
+
+**Response (200 OK):**
+
+```json
+{
+    "success": true,
+    "data": {
+        "id": "string",
+        "reference": "string",
+        "currency": "string",
+        "exchangeRate": "number",
+        "targetCurrency": "string",
+        "description": "string",
+        "status": "POSTED",
+        "fromAccountId": "string",
+        "toAccountId": "string",
+        "createdAt": "string",
+        "entries": [...]
+    }
+}
+```
+
+**Error Responses:**
+
+-   400 Bad Request: Missing fields, invalid amount, insufficient funds, etc.
+-   404 Not Found: Buyer or seller account not found
 
 DEPLOYMENT
 This project is configured for easy deployment on Render.com.

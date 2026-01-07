@@ -31,7 +31,7 @@ export class AuthService {
         }
         const { name, email, currency, password, pin, question, answer } = data;
         const passwordHash = await bcrypt.hash(password, 10);
-        const pinHash = await bcrypt.hash(pin, 10);
+        const transactionPin = await bcrypt.hash(pin, 10);
         const answerHash = await bcrypt.hash(answer.trim().toLowerCase(), 10);
 
         return await prisma.account.create({
@@ -40,7 +40,7 @@ export class AuthService {
                 email,
                 currency,
                 passwordHash,
-                pinHash,
+                transactionPin,
                 securityQuestion: question,
                 securityAnswerHash: answerHash,
                 balance: 0n,

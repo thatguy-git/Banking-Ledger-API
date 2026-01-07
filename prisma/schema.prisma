@@ -17,7 +17,7 @@ model Account {
   balance        BigInt
   allowOverdraft Boolean  @default(false)
   passwordHash       String   
-  pinHash            String  
+  transactionPin      String  
   securityQuestion   String  
   securityAnswerHash String   
   createdAt      DateTime @default(now())
@@ -25,6 +25,8 @@ model Account {
   sentTransfers     Transaction[] @relation("sender")
   receivedTransfers Transaction[] @relation("receiver")
   entries           Entry[]
+  apiKeys           ApiKey[]
+  invoices          Invoice[]
 }
 
 // 2. THE TRANSACTION (The "Receipt")
@@ -35,11 +37,13 @@ model Transaction {
   targetCurrency String?
   exchangeRate   Float?   @default(1.0)
   description    String?
+  amount         BigInt   
   fromAccount   Account @relation("sender", fields: [fromAccountId], references: [id])
   fromAccountId String
   toAccount     Account @relation("receiver", fields: [toAccountId], references: [id])
   toAccountId   String
   status         TxStatus @default(POSTED)
+  type           String?
   idempotencyKey String?  @unique
   entries        Entry[]
   createdAt      DateTime @default(now())
@@ -58,9 +62,42 @@ model Entry {
   @@index([accountId])
 }
 
+// 4. API KEY (For External Service Access)
+model ApiKey {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id])
+  name      String?  // e.g., "Ticketing Service"
+  createdAt DateTime @default(now())
+  expiresAt DateTime?
+}
+
+// 5. INVOICE
+model Invoice {
+  id                String   @id @default(uuid())
+  reference         String   @unique
+  amount            BigInt
+  description       String  
+  status            InvoiceStatus @default(PENDING)
+  creditorAccountId String
+  creditorAccount   Account  @relation(fields: [creditorAccountId], references: [id])
+  paidAt            DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([status])
+}
+
+
 enum TxStatus {
   PENDING
   POSTED
   ARCHIVED
   FAILED
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
 }

@@ -71,4 +71,38 @@ export class TransferController {
             res.status(500).json({ success: false, error: error.message });
         }
     }
+
+    static async chargePayment(req: Request, res: Response) {
+        try {
+            const authReq = req as AuthenticatedRequest;
+            const buyerId = authReq.user.id;
+            const { sellerAccountNumber, amount, description, reference } =
+                req.body;
+
+            if (!sellerAccountNumber || !amount) {
+                return res.status(400).json({
+                    error: 'Missing required fields: sellerAccountNumber, amount',
+                });
+            }
+
+            const result = await TransferService.chargePayment({
+                buyerId,
+                sellerAccountNumber,
+                amount: BigInt(amount),
+                description,
+                reference,
+            });
+
+            res.status(200).json({
+                success: true,
+                data: result,
+            });
+        } catch (error: any) {
+            console.error('Charge Payment Error:', error.message);
+            res.status(400).json({
+                success: false,
+                error: error.message,
+            });
+        }
+    }
 }
