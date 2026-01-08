@@ -7,7 +7,8 @@
         "dev": "nodemon --exec tsx src/server.ts",
         "build": "tsc",
         "start": "node dist/server.js",
-        "test": "tsx load-test.ts"
+        "test": "tsx load-test.ts",
+        "seed": "tsx prisma/seed.ts"
     },
     "prisma": {
         "seed": "tsx prisma/seed.ts"

@@ -17,36 +17,73 @@ const JWT_SECRET = process.env.JWT_SECRET || 'super';
 
 export class AuthService {
     static async signup(data: SignupInput) {
+        const { name, email, currency, password, pin, question, answer } = data;
+
+        if (
+            !name ||
+            !email ||
+            !currency ||
+            !password ||
+            !pin ||
+            !question ||
+            !answer
+        ) {
+            throw new Error('All fields are required for signup');
+        }
+
+        const existingUser = await prisma.account.findFirst({
+            where: {
+                OR: [{ email: email }],
+            },
+        });
+
+        if (existingUser) {
+            if (existingUser.email === email) {
+                throw new Error('Email already in use');
+            }
+            throw new Error('User already exists');
+        }
+
         let accountNumber = generateAccountNumber();
         let isUnique = false;
         while (!isUnique) {
-            const existing = await prisma.account.findUnique({
+            const existingAcc = await prisma.account.findUnique({
                 where: { accountNumber },
             });
-            if (!existing) {
+            if (!existingAcc) {
                 isUnique = true;
             } else {
                 accountNumber = generateAccountNumber();
             }
         }
-        const { name, email, currency, password, pin, question, answer } = data;
+
         const passwordHash = await bcrypt.hash(password, 10);
         const transactionPin = await bcrypt.hash(pin, 10);
         const answerHash = await bcrypt.hash(answer.trim().toLowerCase(), 10);
 
-        return await prisma.account.create({
-            data: {
-                name,
-                email,
-                currency,
-                passwordHash,
-                transactionPin,
-                securityQuestion: question,
-                securityAnswerHash: answerHash,
-                balance: 0n,
-                accountNumber,
-            },
-        });
+        console.log(`Creating account for ${email}...`);
+
+        try {
+            return await prisma.account.create({
+                data: {
+                    name,
+                    email,
+                    currency,
+                    passwordHash,
+                    transactionPin,
+                    securityQuestion: question,
+                    securityAnswerHash: answerHash,
+                    balance: 0n,
+                    accountNumber,
+                },
+            });
+        } catch (error: any) {
+            if (error.code === 'P2002') {
+                const target = error.meta?.target?.[0] || 'field';
+                throw new Error(`${target} already taken (Race Condition)`);
+            }
+            throw error;
+        }
     }
 
     static async login(email: string, password: string) {

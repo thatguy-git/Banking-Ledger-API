@@ -5,14 +5,14 @@ interface RateCache {
 
 export class ExchangeService {
     private static cache: RateCache | null = null;
-    private static CACHE_TTL_MS = 60 * 1000;
+    private static CACHE_TTL_MS = 2 * 60 * 1000;
     private static fetchPromise: Promise<void> | null = null;
 
     static async getLiveRate(from: string, to: string): Promise<number> {
         const base = from.trim().toUpperCase();
         const target = to.trim().toUpperCase();
 
-        console.log(`💱 Exchange Service called: ${base} -> ${target}`);
+        console.log(`Exchange Service called: ${base} -> ${target}`);
 
         if (base === target) {
             console.log(`Currencies are identical. Returning 1.0`);
@@ -24,7 +24,7 @@ export class ExchangeService {
             !this.cache || now - this.cache.timestamp > this.CACHE_TTL_MS;
 
         if (isCacheExpired) {
-            console.log(`⏳ Cache expired or empty. Refreshing...`);
+            console.log(`Cache expired or empty. Refreshing...`);
             if (!this.fetchPromise) {
                 this.fetchPromise = this.refreshRates();
             }
@@ -86,8 +86,6 @@ export class ExchangeService {
             );
         } catch (error) {
             console.error('Failed to refresh rates:', error);
-            // We intentionally do not throw here to allow retries,
-            // but the main method will throw if cache is still null.
         } finally {
             this.fetchPromise = null;
         }

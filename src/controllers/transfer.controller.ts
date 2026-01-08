@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { TransferService } from '../services/transfer.service.js';
-import { AuthenticatedRequest } from '../middlewares/auth.middleware.js';
+import { AuthenticatedRequest } from '../middlewares/jwt.middleware.js';
 import { prisma } from '../database/client.js';
 
 export class TransferController {

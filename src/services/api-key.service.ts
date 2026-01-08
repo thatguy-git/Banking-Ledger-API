@@ -6,7 +6,6 @@ export class ApiKeyService {
         accountId: string,
         name?: string
     ): Promise<string> {
-        // Generate a unique API key
         const key = `sk_live_${crypto.randomBytes(16).toString('hex')}`;
 
         await prisma.apiKey.create({
@@ -55,7 +54,7 @@ export class ApiKeyService {
         return await prisma.apiKey.deleteMany({
             where: {
                 id: keyId,
-                accountId, // Ensure only the owner can revoke
+                accountId,
             },
         });
     }

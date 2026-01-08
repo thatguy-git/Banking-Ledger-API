@@ -5,6 +5,10 @@ import accountRoutes from './routes/account.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import invoiceRoutes from './routes/invoice.routes.js';
 
+(BigInt.prototype as any).toJSON = function () {
+    return this.toString();
+};
+
 const app = express();
 
 app.use(express.json());

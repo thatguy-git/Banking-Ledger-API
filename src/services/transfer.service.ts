@@ -17,8 +17,8 @@ interface DepositInput {
 }
 
 interface ChargeInput {
-    buyerId: string; // Buyer's account ID
-    sellerAccountNumber: string; // Seller's account number
+    buyerId: string;
+    sellerAccountNumber: string;
     amount: bigint;
     description?: string;
     reference?: string;
@@ -205,6 +205,7 @@ export class TransferService {
                 data: {
                     reference: reference || `DEP-FX-${Date.now()}`,
                     currency: bank.currency,
+                    amount: debitAmount,
                     fromAccountId: bankId,
                     toAccountId: toAccountId,
                     targetCurrency: userPreview.currency,

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { AccountService } from '../services/account.service.js';
 import { ApiKeyService } from '../services/api-key.service.js';
-import { AuthenticatedRequest } from '../middlewares/auth.middleware.js';
+import { AuthenticatedRequest } from '../middlewares/jwt.middleware.js';
 
 export class AccountController {
     static async getAccount(req: Request, res: Response) {
