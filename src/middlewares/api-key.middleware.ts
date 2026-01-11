@@ -13,7 +13,7 @@ export const authenticateApiKey = async (
     res: Response,
     next: NextFunction
 ) => {
-    const apiKey = req.headers['x-api-key'] as string;
+    const apiKey = req.headers['api-key'] as string;
 
     if (!apiKey) {
         return res.status(401).json({ error: 'API key required' });

@@ -17,6 +17,15 @@ interface PayInvoiceInput {
     idempotencyKey?: string;
 }
 
+interface InvoicePaymentResponse {
+    id: string;
+    reference: string;
+    amount: bigint;
+    status: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
 export class InvoiceService {
     static async createInvoice(input: CreateInvoiceInput) {
         let {
@@ -64,15 +73,17 @@ export class InvoiceService {
     static async payInvoice(input: PayInvoiceInput) {
         const { invoiceId, payerId, pin, idempotencyKey } = input;
 
+        if (!idempotencyKey) {
+            throw new Error('Please provide an idempotency key');
+        }
+
         if (idempotencyKey) {
             const existingTx = await prisma.transaction.findUnique({
                 where: { idempotencyKey },
             });
 
             if (existingTx) {
-                console.log(
-                    `♻️ Idempotent Replay: Returning previous success for ${idempotencyKey}`
-                );
+                console.log(`Returning previous success for ${idempotencyKey}`);
                 const invoice = await prisma.invoice.findUniqueOrThrow({
                     where: { id: invoiceId },
                 });
@@ -146,7 +157,7 @@ export class InvoiceService {
         });
     }
 
-    static async sendWebhook(invoice: any) {
+    static async sendWebhook(invoice: InvoicePaymentResponse) {
         if (!process.env.WEBHOOK_URL) {
             return;
         }

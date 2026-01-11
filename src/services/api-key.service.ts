@@ -6,7 +6,7 @@ export class ApiKeyService {
         accountId: string,
         name?: string
     ): Promise<string> {
-        const key = `sk_live_${crypto.randomBytes(16).toString('hex')}`;
+        const key = `bnk_${crypto.randomBytes(16).toString('hex')}`;
 
         await prisma.apiKey.create({
             data: {
