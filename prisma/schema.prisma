@@ -68,7 +68,7 @@ model ApiKey {
   key       String   @unique
   accountId String
   account   Account  @relation(fields: [accountId], references: [id])
-  name      String?  // e.g., "Ticketing Service"
+  name      String?  
   createdAt DateTime @default(now())
   expiresAt DateTime?
 }
@@ -78,10 +78,11 @@ model Invoice {
   id                String   @id @default(uuid())
   reference         String   @unique
   amount            BigInt
-  description       String  
+  description       String
   status            InvoiceStatus @default(PENDING)
   creditorAccountId String
   creditorAccount   Account  @relation(fields: [creditorAccountId], references: [id])
+  expiresAt         DateTime? 
   paidAt            DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -100,4 +101,6 @@ enum TxStatus {
 enum InvoiceStatus {
   PENDING
   PAID
+  FAILED
+  EXPIRED
 }
