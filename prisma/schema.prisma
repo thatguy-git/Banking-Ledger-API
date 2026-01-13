@@ -90,6 +90,27 @@ model Invoice {
   @@index([status])
 }
 
+model WebhookEvent {
+  id        String   @id @default(uuid())
+  // Who are we sending this to?
+  endpoint  String
+  payload   Json
+  status    WebhookStatus @default(PENDING)
+  attempts  Int           @default(0)
+  lastError String? 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+enum WebhookStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 
 enum TxStatus {
   PENDING

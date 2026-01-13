@@ -1,6 +1,5 @@
 import { prisma } from '../database/client.js';
 import bcrypt from 'bcryptjs';
-import { ExchangeService } from './exchange.service.js';
 import axios from 'axios';
 
 interface CreateInvoiceInput {
@@ -251,6 +250,3 @@ export class InvoiceService {
             .catch((err) => console.error('Webhook failed:', err.message));
     }
 }
-
-// In the controller, after successful payment:
-InvoiceService.sendWebhook(result, 'INVOICE_PAID');
