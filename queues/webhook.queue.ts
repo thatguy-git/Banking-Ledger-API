@@ -8,53 +8,46 @@ const connection = new IORedis(
     process.env.REDIS_URL || 'redis://localhost:6379'
 );
 
-// 1. Define the Queue
 export const webhookQueue = new Queue('webhook-delivery', {
     connection,
     defaultJobOptions: {
-        attempts: 5, // Retry 5 times
+        attempts: 5,
         backoff: {
             type: 'exponential',
-            delay: 1000, // 1s, 2s, 4s, 8s, 16s
+            delay: 1000,
         },
         removeOnComplete: true,
-        removeOnFail: false, // Keep failed jobs for manual inspection (DLQ)
+        removeOnFail: false,
     },
 });
 
-// 2. Define the Worker (The "Network I/O" Handler)
 const worker = new Worker(
     'webhook-delivery',
     async (job) => {
         const { eventId, endpoint, payload, secret } = job.data;
 
         try {
-            console.log(`🚀 Processing Webhook: ${eventId}`);
-
-            // A. Generate HMAC Signature
+            console.log(`Processing Webhook: ${eventId}`);
             const signature = crypto
                 .createHmac('sha256', secret)
                 .update(JSON.stringify(payload))
                 .digest('hex');
 
-            // B. Send Request
             await axios.post(endpoint, payload, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-webhook-signature': signature, // The secure header
+                    'x-webhook-signature': signature,
                 },
-                timeout: 5000, // Fail fast if receiver hangs
+                timeout: 5000,
             });
 
-            // C. Update DB to COMPLETED
             await prisma.webhookEvent.update({
                 where: { id: eventId },
                 data: { status: 'COMPLETED', lastError: null },
             });
 
-            console.log(`✅ Webhook Delivered: ${eventId}`);
+            console.log(`Webhook Delivered: ${eventId}`);
         } catch (error: any) {
-            // D. Log Failure in DB (but throw error so BullMQ retries)
             const errorMessage = error.response?.data?.message || error.message;
 
             await prisma.webhookEvent.update({
@@ -65,19 +58,17 @@ const worker = new Worker(
                 },
             });
 
-            console.error(`❌ Webhook Failed (${eventId}):`, errorMessage);
+            console.error(`Webhook Failed (${eventId}):`, errorMessage);
             throw error; // Triggers BullMQ retry
         }
     },
     { connection }
 );
 
-// 3. Listen for "Dead Letter" events (Max attempts reached)
 worker.on('failed', async (job, err) => {
     if (job && job.attemptsMade >= 5) {
-        console.error(`💀 Job ${job.id} moved to DLQ (Max Retries)`);
+        console.error(`Job ${job.id} moved to DLQ (Max Retries)`);
 
-        // Final DB update
         await prisma.webhookEvent.update({
             where: { id: job.data.eventId },
             data: { status: 'FAILED' },

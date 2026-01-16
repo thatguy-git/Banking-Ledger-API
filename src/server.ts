@@ -1,6 +1,7 @@
 import './utils/bigint-serializer.js';
 import app from './app.js';
 import dotenv from 'dotenv';
+import '../queues/webhook-sweeper.js';
 
 dotenv.config();
 

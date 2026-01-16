@@ -1,6 +1,5 @@
 import { prisma } from '../database/client.js';
 import bcrypt from 'bcryptjs';
-import axios from 'axios';
 
 interface CreateInvoiceInput {
     creditorId: string;
@@ -75,178 +74,140 @@ export class InvoiceService {
     static async payInvoice(input: PayInvoiceInput) {
         const { invoiceId, payerId, pin, idempotencyKey } = input;
 
-        if (!idempotencyKey) {
-            throw new Error('Please provide an idempotency key');
-        }
-
         if (idempotencyKey) {
             const existingTx = await prisma.transaction.findUnique({
                 where: { idempotencyKey },
             });
 
             if (existingTx) {
-                console.log(`Returning previous success for ${idempotencyKey}`);
-                const invoice = await prisma.invoice.findUniqueOrThrow({
+                console.log(
+                    `Idempotency hit: Returning previous success for ${idempotencyKey}`
+                );
+                return await prisma.invoice.findUniqueOrThrow({
                     where: { id: invoiceId },
                 });
-                return invoice;
             }
         }
 
-        return await prisma
-            .$transaction(async (tx) => {
-                const invoice = await tx.invoice.findUnique({
+        return await prisma.$transaction(async (tx) => {
+            const invoice = await tx.invoice.findUnique({
+                where: { id: invoiceId },
+                include: { creditorAccount: true },
+            });
+
+            if (!invoice) throw new Error('Invoice not found');
+            if (invoice.status !== 'PENDING') {
+                throw new Error(`Invoice is already ${invoice.status}`);
+            }
+
+            if (invoice.expiresAt && new Date() > invoice.expiresAt) {
+                await tx.invoice.update({
                     where: { id: invoiceId },
-                    include: { creditorAccount: true },
+                    data: { status: 'EXPIRED' },
                 });
+                throw new Error('Invoice has expired');
+            }
 
-                if (!invoice) throw new Error('Invoice not found');
-                if (invoice.status !== 'PENDING') {
-                    throw new Error(
-                        `Invoice is ${invoice.status.toLowerCase()}`
-                    );
-                }
+            const payer = await tx.account.findUnique({
+                where: { id: payerId },
+            });
 
-                // Check if expired
-                if (invoice.expiresAt && new Date() > invoice.expiresAt) {
-                    await tx.invoice.update({
-                        where: { id: invoiceId },
-                        data: { status: 'EXPIRED' },
-                    });
-                    throw new Error('Invoice has expired');
-                }
+            if (!payer) throw new Error('Payer account not found');
 
-                const payer = await tx.account.findUnique({
-                    where: { id: payerId },
-                });
+            // C. 🔐 Verify PIN (Security Check)
+            // We throw here because a bad PIN is a user error, not a transaction failure.
+            // The invoice should remain PENDING so they can try again.
+            const isPinValid = await bcrypt.compare(pin, payer.transactionPin);
+            if (!isPinValid) {
+                throw new Error('Invalid Transaction PIN');
+            }
 
-                if (!payer) throw new Error('Payer account not found');
+            // D. 💰 Check Balance (Logic Limit Check)
+            // If balance is low, we FAIL the invoice and notify the merchant.
+            if (payer.balance < invoice.amount) {
+                console.log(`❌ Insufficient funds for Invoice ${invoiceId}`);
 
-                const isPinValid = await bcrypt.compare(
-                    pin,
-                    payer.transactionPin
-                );
-
-                if (!isPinValid) {
-                    throw new Error('Invalid Transaction PIN');
-                }
-
-                if (payer.balance < invoice.amount) {
-                    // Mark as FAILED and emit webhook
-                    await tx.invoice.update({
-                        where: { id: invoiceId },
-                        data: { status: 'FAILED' },
-                    });
-                    // Emit FAILED event (we'll call sendWebhook after transaction)
-                    throw new Error('Insufficient funds');
-                }
-
-                await tx.account.update({
-                    where: { id: payer.id },
-                    data: { balance: { decrement: invoice.amount } },
-                });
-
-                await tx.account.update({
-                    where: { id: invoice.creditorAccountId },
-                    data: { balance: { increment: invoice.amount } },
-                });
-
-                const updatedInvoice = await tx.invoice.update({
+                // 1. Mark Invoice FAILED
+                const failedInvoice = await tx.invoice.update({
                     where: { id: invoiceId },
-                    data: { status: 'PAID', paidAt: new Date() },
+                    data: { status: 'FAILED' },
                 });
 
-                await tx.transaction.create({
+                // 2. Add "Failure" Webhook to Outbox
+                await tx.webhookEvent.create({
                     data: {
-                        amount: invoice.amount,
-                        type: 'INVOICE_PAYMENT',
-                        fromAccountId: payer.id,
-                        toAccountId: invoice.creditorAccountId,
-                        reference: invoice.reference,
-                        status: 'POSTED',
-                        currency: payer.currency,
-                        entries: {
-                            create: [
-                                {
-                                    accountId: payer.id,
-                                    amount: -invoice.amount,
-                                },
-                                {
-                                    accountId: invoice.creditorAccountId,
-                                    amount: invoice.amount,
-                                },
-                            ],
+                        endpoint: process.env.TICKETING_WEBHOOK_URL!,
+                        status: 'PENDING',
+                        payload: {
+                            event: 'INVOICE_PAYMENT_FAILED',
+                            invoiceId: failedInvoice.id,
+                            reference: failedInvoice.reference,
+                            status: 'FAILED',
+                            reason: 'Insufficient funds',
                         },
                     },
                 });
 
-                return updatedInvoice;
-            })
-            .catch(async (error) => {
-                // If payment failed due to insufficient funds, emit FAILED webhook
-                if (error.message === 'Insufficient funds') {
-                    const failedInvoice = await prisma.invoice.findUnique({
-                        where: { id: invoiceId },
-                    });
-                    if (failedInvoice) {
-                        InvoiceService.sendWebhook(
-                            failedInvoice,
-                            'INVOICE_FAILED'
-                        );
-                    }
-                }
-                throw error;
+                // 3. Return the Failed Invoice (Do NOT throw, or we lose the 'FAILED' status update)
+                return failedInvoice;
+            }
+
+            // E. 💸 Move the Money (The Transfer)
+            await tx.account.update({
+                where: { id: payer.id },
+                data: { balance: { decrement: invoice.amount } },
             });
-    }
 
-    static async checkExpiredInvoices() {
-        // Run this periodically (e.g., via cron job)
-        const expiredInvoices = await prisma.invoice.updateMany({
-            where: {
-                status: 'PENDING',
-                expiresAt: { lt: new Date() },
-            },
-            data: { status: 'EXPIRED' },
-        });
+            await tx.account.update({
+                where: { id: invoice.creditorAccountId },
+                data: { balance: { increment: invoice.amount } },
+            });
 
-        // Emit webhooks for expired invoices
-        const invoices = await prisma.invoice.findMany({
-            where: {
-                status: 'EXPIRED',
-                updatedAt: { gte: new Date(Date.now() - 60000) }, // Recently updated
-            },
-        });
+            // F. ✅ Update Invoice to PAID
+            const updatedInvoice = await tx.invoice.update({
+                where: { id: invoiceId },
+                data: { status: 'PAID', paidAt: new Date() },
+            });
 
-        for (const invoice of invoices) {
-            InvoiceService.sendWebhook(invoice, 'INVOICE_EXPIRED');
-        }
-
-        return expiredInvoices.count;
-    }
-
-    static async sendWebhook(invoice: any, event: string = 'INVOICE_PAID') {
-        if (!process.env.WEBHOOK_URL) {
-            return;
-        }
-        const webhookUrl = process.env.WEBHOOK_URL;
-        axios
-            .post(
-                webhookUrl,
-                {
-                    event,
-                    status: invoice.status,
-                    data: {
-                        invoiceId: invoice.id,
-                        reference: invoice.reference,
-                        amount: invoice.amount,
+            // G. 📝 Create Transaction Record
+            await tx.transaction.create({
+                data: {
+                    idempotencyKey, // Save the key so we can check it later!
+                    amount: invoice.amount,
+                    type: 'INVOICE_PAYMENT',
+                    fromAccountId: payer.id,
+                    toAccountId: invoice.creditorAccountId,
+                    reference: invoice.reference,
+                    status: 'POSTED',
+                    currency: payer.currency,
+                    // Optional: Double Entry Ledger
+                    entries: {
+                        create: [
+                            { accountId: payer.id, amount: -invoice.amount },
+                            {
+                                accountId: invoice.creditorAccountId,
+                                amount: invoice.amount,
+                            },
+                        ],
                     },
                 },
-                {
-                    headers: {
-                        'x-webhook-signature': process.env.WEBHOOK_SECRET,
+            });
+
+            // H. 🚀 Add "Success" Webhook to Outbox
+            await tx.webhookEvent.create({
+                data: {
+                    endpoint: process.env.TICKETING_WEBHOOK_URL!,
+                    status: 'PENDING',
+                    payload: {
+                        event: 'INVOICE_PAID',
+                        invoiceId: updatedInvoice.id,
+                        reference: updatedInvoice.reference,
+                        status: 'PAID',
                     },
-                }
-            )
-            .catch((err) => console.error('Webhook failed:', err.message));
+                },
+            });
+
+            return updatedInvoice;
+        });
     }
 }
