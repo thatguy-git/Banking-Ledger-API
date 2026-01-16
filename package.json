@@ -18,6 +18,7 @@
     "license": "ISC",
     "type": "commonjs",
     "dependencies": {
+        "@types/uuid": "^10.0.0",
         "axios": "^1.13.2",
         "bcryptjs": "^3.0.3",
         "bullmq": "^5.66.5",
@@ -27,7 +28,8 @@
         "ioredis": "^5.9.1",
         "jsonwebtoken": "^9.0.3",
         "node-cron": "^4.2.1",
-        "pg": "^8.16.3"
+        "pg": "^8.16.3",
+        "uuid": "^13.0.0"
     },
     "devDependencies": {
         "@prisma/client": "^5.22.0",

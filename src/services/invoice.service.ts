@@ -1,11 +1,13 @@
 import { prisma } from '../database/client.js';
 import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
 
 interface CreateInvoiceInput {
     creditorId: string;
     amount: bigint;
-    reference?: string;
+    reference: string;
     description: string;
+    webhookUrl: string;
     expiresAt?: Date;
 }
 
@@ -30,8 +32,9 @@ export class InvoiceService {
         let {
             creditorId,
             amount,
-            reference: bodyReference,
+            reference,
             description,
+            webhookUrl,
             expiresAt,
         } = input;
 
@@ -51,22 +54,18 @@ export class InvoiceService {
             throw new Error('Please write a description for the invoice');
         }
 
-        let finalReference = bodyReference;
-
-        if (!finalReference) {
-            const randomSuffix = Math.floor(Math.random() * 10000)
-                .toString()
-                .padStart(4, '0');
-            finalReference = `INV-${Date.now()}-${randomSuffix}`;
+        if (!reference) {
+            const reference = input.reference || `REF-${uuidv4()}`;
         }
 
         return await prisma.invoice.create({
             data: {
-                reference: finalReference,
+                reference,
                 amount,
                 creditorAccountId: creditorId,
                 description,
-                expiresAt, // Set expiration if provided
+                webhookUrl,
+                expiresAt, // Set expiration if provided, ADD INVOICE EXPIRATION DATE FROM THE TICKETING SERVICE, SHOULD BE FIFTEEN MINUTES AFTER THE TIME OF BOOKING
             },
         });
     }
@@ -114,29 +113,24 @@ export class InvoiceService {
 
             if (!payer) throw new Error('Payer account not found');
 
-            // C. 🔐 Verify PIN (Security Check)
-            // We throw here because a bad PIN is a user error, not a transaction failure.
-            // The invoice should remain PENDING so they can try again.
             const isPinValid = await bcrypt.compare(pin, payer.transactionPin);
             if (!isPinValid) {
                 throw new Error('Invalid Transaction PIN');
             }
 
-            // D. 💰 Check Balance (Logic Limit Check)
-            // If balance is low, we FAIL the invoice and notify the merchant.
+            const webhookEndpoint = invoice.webhookUrl;
+
             if (payer.balance < invoice.amount) {
                 console.log(`❌ Insufficient funds for Invoice ${invoiceId}`);
 
-                // 1. Mark Invoice FAILED
                 const failedInvoice = await tx.invoice.update({
                     where: { id: invoiceId },
                     data: { status: 'FAILED' },
                 });
 
-                // 2. Add "Failure" Webhook to Outbox
                 await tx.webhookEvent.create({
                     data: {
-                        endpoint: process.env.TICKETING_WEBHOOK_URL!,
+                        endpoint: webhookEndpoint,
                         status: 'PENDING',
                         payload: {
                             event: 'INVOICE_PAYMENT_FAILED',
@@ -196,7 +190,7 @@ export class InvoiceService {
             // H. 🚀 Add "Success" Webhook to Outbox
             await tx.webhookEvent.create({
                 data: {
-                    endpoint: process.env.TICKETING_WEBHOOK_URL!,
+                    endpoint: webhookEndpoint,
                     status: 'PENDING',
                     payload: {
                         event: 'INVOICE_PAID',

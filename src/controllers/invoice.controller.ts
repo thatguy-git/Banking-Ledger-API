@@ -8,7 +8,7 @@ export class InvoiceController {
         const apiReq = req as ApiKeyAuthenticatedRequest;
         const creditorId = apiReq.apiKeyAccount?.accountId;
         try {
-            const { amount, description } = req.body;
+            const { amount, description, webhookUrl, reference } = req.body;
 
             if (!creditorId) {
                 return res.status(401).json({
@@ -23,10 +23,24 @@ export class InvoiceController {
                 });
             }
 
+            if (!webhookUrl) {
+                return res.status(400).json({
+                    error: 'Missing required field: webhookUrl',
+                });
+            }
+
+            if (!reference) {
+                return res.status(400).json({
+                    error: 'Missing required field: reference',
+                });
+            }
+
             const result = await InvoiceService.createInvoice({
                 creditorId,
                 amount: BigInt(amount),
                 description,
+                webhookUrl,
+                reference,
             });
 
             res.status(201).json({
@@ -64,10 +78,6 @@ export class InvoiceController {
                 payerId,
                 pin,
                 idempotencyKey,
-            });
-
-            InvoiceService.sendWebhook(result).catch((err) => {
-                console.error('⚠️ Webhook failed to send:', err.message);
             });
 
             const safeResponse = {

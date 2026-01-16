@@ -16,6 +16,7 @@ model Account {
   currency       String
   balance        BigInt
   allowOverdraft Boolean  @default(false)
+  webhookUrl     String?
   passwordHash       String   
   transactionPin      String  
   securityQuestion   String  
@@ -80,6 +81,7 @@ model Invoice {
   amount            BigInt
   description       String
   status            InvoiceStatus @default(PENDING)
+  webhookUrl        String   @default("https://default-webhook.example.com")
   creditorAccountId String
   creditorAccount   Account  @relation(fields: [creditorAccountId], references: [id])
   expiresAt         DateTime? 
