@@ -13,16 +13,24 @@ export const authenticateApiKey = async (
     res: Response,
     next: NextFunction
 ) => {
-    const apiKey = req.headers['api-key'] as string;
+    const apiKey = req.headers['x-api-key'] as string;
 
     if (!apiKey) {
         return res.status(401).json({ error: 'API key required' });
     }
 
+    // 👇 ADD THIS DEBUG LOG
+    console.log(`🔑 Incoming Key: '${apiKey}'`);
+
     const account = await ApiKeyService.validateApiKey(apiKey);
+
+    // 👇 ADD THIS DEBUG LOG
+    console.log(`🕵️ Lookup Result:`, account);
+
     if (!account) {
         return res.status(401).json({ error: 'Invalid or expired API key' });
     }
+    // ...
 
     (req as ApiKeyAuthenticatedRequest).apiKeyAccount = {
         accountId: account.accountId,

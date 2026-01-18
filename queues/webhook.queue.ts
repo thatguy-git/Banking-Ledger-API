@@ -5,7 +5,10 @@ import crypto from 'crypto';
 import { prisma } from '../src/database/client.js';
 
 const connection = new IORedis(
-    process.env.REDIS_URL || 'redis://localhost:6379'
+    process.env.REDIS_URL || 'redis://localhost:6379',
+    {
+        maxRetriesPerRequest: null,
+    }
 );
 
 export const webhookQueue = new Queue('webhook-delivery', {
