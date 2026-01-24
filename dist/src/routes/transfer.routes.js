@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const transfer_controller_js_1 = require("../controllers/transfer.controller.js");
+const jwt_middleware_js_1 = require("../middlewares/jwt.middleware.js");
+const validation_middleware_js_1 = require("../middlewares/validation.middleware.js");
+const transfer_schema_js_1 = require("../schemas/transfer.schema.js");
+const router = (0, express_1.Router)();
+router.post('/', jwt_middleware_js_1.authenticateToken, (0, validation_middleware_js_1.validateRequest)(transfer_schema_js_1.TransferSchema), transfer_controller_js_1.TransferController.transfer);
+router.post('/deposit', jwt_middleware_js_1.authenticateToken, (0, validation_middleware_js_1.validateRequest)(transfer_schema_js_1.DepositSchema), transfer_controller_js_1.TransferController.deposit);
+router.post('/charge', jwt_middleware_js_1.authenticateToken, (0, validation_middleware_js_1.validateRequest)(transfer_schema_js_1.ChargePaymentSchema), transfer_controller_js_1.TransferController.chargePayment);
+exports.default = router;

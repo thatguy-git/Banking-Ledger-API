@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const invoice_controller_js_1 = require("../controllers/invoice.controller.js");
+const jwt_middleware_js_1 = require("../middlewares/jwt.middleware.js");
+const api_key_middleware_js_1 = require("../middlewares/api-key.middleware.js");
+const validation_middleware_js_1 = require("../middlewares/validation.middleware.js");
+const invoice_schema_js_1 = require("../schemas/invoice.schema.js");
+const router = (0, express_1.Router)();
+router.post('/', api_key_middleware_js_1.authenticateApiKey, (0, validation_middleware_js_1.validateRequest)(invoice_schema_js_1.CreateInvoiceSchema), invoice_controller_js_1.InvoiceController.createInvoice);
+router.post('/:id/pay', jwt_middleware_js_1.authenticateToken, (0, validation_middleware_js_1.validateRequest)(invoice_schema_js_1.PayInvoiceSchema), invoice_controller_js_1.InvoiceController.payInvoice);
+exports.default = router;

@@ -1,26 +1,21 @@
-import { Request, Response } from 'express';
-import { TransferService } from '../services/transfer.service.js';
-import { AuthenticatedRequest } from '../middlewares/jwt.middleware.js';
-import { prisma } from '../database/client.js';
-
-export class TransferController {
-    static async transfer(req: Request, res: Response) {
-        const idempotencyKey = req.headers['idempotency-key'] as
-            | string
-            | undefined;
-        const authReq = req as AuthenticatedRequest;
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TransferController = void 0;
+const transfer_service_js_1 = require("../services/transfer.service.js");
+const client_js_1 = require("../database/client.js");
+class TransferController {
+    static async transfer(req, res) {
+        const idempotencyKey = req.headers['idempotency-key'];
+        const authReq = req;
         const senderId = authReq.user.id;
         try {
-            const { toAccountNumber, amount, description, reference } =
-                req.body;
-
+            const { toAccountNumber, amount, description, reference } = req.body;
             if (!idempotencyKey) {
                 return res.status(400).json({
                     error: 'Missing required header: Idempotency-Key',
                 });
             }
-
-            const result = await TransferService.transferFunds({
+            const result = await transfer_service_js_1.TransferService.transferFunds({
                 senderId,
                 toAccountNumber,
                 amount: BigInt(amount),
@@ -32,7 +27,8 @@ export class TransferController {
                 success: true,
                 data: result,
             });
-        } catch (error: any) {
+        }
+        catch (error) {
             console.error('Transfer Error:', error.message);
             res.status(400).json({
                 success: false,
@@ -40,53 +36,46 @@ export class TransferController {
             });
         }
     }
-
-    static async deposit(req: Request, res: Response) {
+    static async deposit(req, res) {
         try {
             const { amount } = req.body;
-            const authReq = req as AuthenticatedRequest;
+            const authReq = req;
             const userId = authReq.user.id;
-
-            const userAccount = await prisma.account.findUnique({
+            const userAccount = await client_js_1.prisma.account.findUnique({
                 where: { id: userId },
             });
-
             if (!userAccount)
                 return res.status(404).json({ error: 'Account not found' });
-
-            const result = await TransferService.depositFunds({
+            const result = await transfer_service_js_1.TransferService.depositFunds({
                 toAccountNumber: userAccount.accountNumber,
                 amount: BigInt(amount),
                 reference: `DEP-${Date.now()}`,
             });
-
             res.status(200).json({ success: true, data: result });
-        } catch (error: any) {
+        }
+        catch (error) {
             console.error('Deposit Error:', error.message);
             res.status(500).json({ success: false, error: error.message });
         }
     }
-
-    static async chargePayment(req: Request, res: Response) {
+    static async chargePayment(req, res) {
         try {
-            const authReq = req as AuthenticatedRequest;
+            const authReq = req;
             const buyerId = authReq.user.id;
-            const { sellerAccountNumber, amount, description, reference } =
-                req.body;
-
-            const result = await TransferService.chargePayment({
+            const { sellerAccountNumber, amount, description, reference } = req.body;
+            const result = await transfer_service_js_1.TransferService.chargePayment({
                 buyerId,
                 sellerAccountNumber,
                 amount: BigInt(amount),
                 description,
                 reference,
             });
-
             res.status(200).json({
                 success: true,
                 data: result,
             });
-        } catch (error: any) {
+        }
+        catch (error) {
             console.error('Charge Payment Error:', error.message);
             res.status(400).json({
                 success: false,
@@ -95,3 +84,4 @@ export class TransferController {
         }
     }
 }
+exports.TransferController = TransferController;

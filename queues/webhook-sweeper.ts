@@ -2,34 +2,37 @@ import cron from 'node-cron';
 import { webhookQueue } from './webhook.queue.js';
 import { prisma } from '../src/database/client.js';
 
-cron.schedule('*/1 * * * *', async () => {
-    console.log('Sweeping for pending webhooks...');
+const BATCH_SIZE = 50;
 
+cron.schedule('* * * * *', async () => {
     try {
         const pendingWebhooks = await prisma.webhookEvent.findMany({
             where: { status: 'PENDING' },
+            take: BATCH_SIZE,
+            orderBy: { createdAt: 'asc' },
         });
 
-        console.log(`Found ${pendingWebhooks.length} pending webhooks`);
+        if (pendingWebhooks.length === 0) return;
 
-        for (const webhook of pendingWebhooks) {
-            await webhookQueue.add('webhook-delivery', {
-                eventId: webhook.id,
-                endpoint: webhook.endpoint,
-                payload: webhook.payload,
-                secret: process.env.WEBHOOK_SECRET || 'default-webhook-secret',
-            });
+        await Promise.all(
+            pendingWebhooks.map((webhook) =>
+                webhookQueue.add('webhook-delivery', {
+                    eventId: webhook.id,
+                    endpoint: webhook.endpoint,
+                    payload: webhook.payload,
+                    secret:
+                        process.env.WEBHOOK_SECRET || 'default-webhook-secret',
+                }),
+            ),
+        );
 
-            await prisma.webhookEvent.update({
-                where: { id: webhook.id },
-                data: { status: 'PROCESSING' },
-            });
-
-            console.log(`Queued webhook ${webhook.id} for delivery`);
-        }
+        await prisma.webhookEvent.updateMany({
+            where: {
+                id: { in: pendingWebhooks.map((w) => w.id) },
+            },
+            data: { status: 'PROCESSING' },
+        });
     } catch (error) {
-        console.error('Error in webhook sweeper:', error);
+        console.error('Webhook sweeper error:', error);
     }
 });
-
-console.log('Webhook sweeper cron job scheduled to run every minute');

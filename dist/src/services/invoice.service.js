@@ -1,64 +1,31 @@
-import { prisma } from '../database/client.js';
-import bcrypt from 'bcryptjs';
-import { v4 as uuidv4 } from 'uuid';
-
-interface CreateInvoiceInput {
-    creditorId: string;
-    amount: bigint;
-    reference: string;
-    description: string;
-    webhookUrl: string;
-    expiresAt?: Date;
-}
-
-interface PayInvoiceInput {
-    invoiceId: string;
-    payerId: string;
-    pin: string;
-    idempotencyKey?: string;
-}
-
-interface InvoicePaymentResponse {
-    id: string;
-    reference: string;
-    amount: bigint;
-    status: string;
-    createdAt: Date;
-    updatedAt: Date;
-}
-
-export class InvoiceService {
-    static async createInvoice(input: CreateInvoiceInput) {
-        let {
-            creditorId,
-            amount,
-            reference,
-            description,
-            webhookUrl,
-            expiresAt,
-        } = input;
-
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.InvoiceService = void 0;
+const client_js_1 = require("../database/client.js");
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const uuid_1 = require("uuid");
+class InvoiceService {
+    static async createInvoice(input) {
+        let { creditorId, amount, reference, description, webhookUrl, expiresAt, } = input;
         if (amount <= 0) {
             throw new Error('Invoice amount must be positive');
         }
-
-        const creditor = await prisma.account.findUnique({
+        const creditor = await client_js_1.prisma.account.findUnique({
             where: { id: creditorId },
         });
-
         if (!creditor) {
             throw new Error('Creditor account not found');
         }
-
         if (!description) {
             throw new Error('Please write a description for the invoice');
         }
-
         if (!reference) {
-            const reference = input.reference || `REF-${uuidv4()}`;
+            const reference = input.reference || `REF-${(0, uuid_1.v4)()}`;
         }
-
-        return await prisma.invoice.create({
+        return await client_js_1.prisma.invoice.create({
             data: {
                 reference,
                 amount,
@@ -69,36 +36,29 @@ export class InvoiceService {
             },
         });
     }
-
-    static async payInvoice(input: PayInvoiceInput) {
+    static async payInvoice(input) {
         const { invoiceId, payerId, pin, idempotencyKey } = input;
-
         if (idempotencyKey) {
-            const existingTx = await prisma.transaction.findUnique({
+            const existingTx = await client_js_1.prisma.transaction.findUnique({
                 where: { idempotencyKey },
             });
-
             if (existingTx) {
-                console.log(
-                    `Idempotency hit: Returning previous success for ${idempotencyKey}`,
-                );
-                return await prisma.invoice.findUniqueOrThrow({
+                console.log(`Idempotency hit: Returning previous success for ${idempotencyKey}`);
+                return await client_js_1.prisma.invoice.findUniqueOrThrow({
                     where: { id: invoiceId },
                 });
             }
         }
-
-        return await prisma.$transaction(async (tx) => {
+        return await client_js_1.prisma.$transaction(async (tx) => {
             const invoice = await tx.invoice.findUnique({
                 where: { id: invoiceId },
                 include: { creditorAccount: true },
             });
-
-            if (!invoice) throw new Error('Invoice not found');
+            if (!invoice)
+                throw new Error('Invoice not found');
             if (invoice.status !== 'PENDING') {
                 throw new Error(`Invoice is already ${invoice.status}`);
             }
-
             if (invoice.expiresAt && new Date() > invoice.expiresAt) {
                 await tx.invoice.update({
                     where: { id: invoiceId },
@@ -106,28 +66,22 @@ export class InvoiceService {
                 });
                 throw new Error('Invoice has expired');
             }
-
             const payer = await tx.account.findUnique({
                 where: { id: payerId },
             });
-
-            if (!payer) throw new Error('Payer account not found');
-
-            const isPinValid = await bcrypt.compare(pin, payer.transactionPin);
+            if (!payer)
+                throw new Error('Payer account not found');
+            const isPinValid = await bcryptjs_1.default.compare(pin, payer.transactionPin);
             if (!isPinValid) {
                 throw new Error('Invalid Transaction PIN');
             }
-
             const webhookEndpoint = invoice.webhookUrl;
-
             if (payer.balance < invoice.amount) {
                 console.log(`❌ Insufficient funds for Invoice ${invoiceId}`);
-
                 const failedInvoice = await tx.invoice.update({
                     where: { id: invoiceId },
                     data: { status: 'FAILED' },
                 });
-
                 await tx.webhookEvent.create({
                     data: {
                         endpoint: webhookEndpoint,
@@ -141,28 +95,23 @@ export class InvoiceService {
                         },
                     },
                 });
-
                 // 3. Return the Failed Invoice (Do NOT throw, or we lose the 'FAILED' status update)
                 return failedInvoice;
             }
-
             // E. 💸 Move the Money (The Transfer)
             await tx.account.update({
                 where: { id: payer.id },
                 data: { balance: { decrement: invoice.amount } },
             });
-
             await tx.account.update({
                 where: { id: invoice.creditorAccountId },
                 data: { balance: { increment: invoice.amount } },
             });
-
             // F. ✅ Update Invoice to PAID
             const updatedInvoice = await tx.invoice.update({
                 where: { id: invoiceId },
                 data: { status: 'PAID', paidAt: new Date() },
             });
-
             // G. 📝 Create Transaction Record
             await tx.transaction.create({
                 data: {
@@ -186,7 +135,6 @@ export class InvoiceService {
                     },
                 },
             });
-
             // H. 🚀 Add "Success" Webhook to Outbox
             await tx.webhookEvent.create({
                 data: {
@@ -200,8 +148,8 @@ export class InvoiceService {
                     },
                 },
             });
-
             return updatedInvoice;
         });
     }
 }
+exports.InvoiceService = InvoiceService;

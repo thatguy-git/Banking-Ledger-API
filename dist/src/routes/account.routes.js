@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const account_controller_js_1 = require("../controllers/account.controller.js");
+const jwt_middleware_js_1 = require("../middlewares/jwt.middleware.js");
+const validation_middleware_js_1 = require("../middlewares/validation.middleware.js");
+const account_schema_js_1 = require("../schemas/account.schema.js");
+const router = (0, express_1.Router)();
+router.get('/', jwt_middleware_js_1.authenticateToken, account_controller_js_1.AccountController.getAccount);
+router.get('/balance', jwt_middleware_js_1.authenticateToken, account_controller_js_1.AccountController.getAccountBalance);
+router.get('/history', jwt_middleware_js_1.authenticateToken, (0, validation_middleware_js_1.validateRequest)(account_schema_js_1.PaginationSchema, 'query'), account_controller_js_1.AccountController.getLedgerHistory);
+router.post('/api-keys', jwt_middleware_js_1.authenticateToken, (0, validation_middleware_js_1.validateRequest)(account_schema_js_1.GenerateApiKeySchema), account_controller_js_1.AccountController.generateApiKey);
+router.get('/api-keys', jwt_middleware_js_1.authenticateToken, account_controller_js_1.AccountController.getApiKeys);
+exports.default = router;
