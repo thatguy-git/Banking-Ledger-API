@@ -8,7 +8,7 @@ const connection = new IORedis(
     process.env.REDIS_URL || 'redis://localhost:6379',
     {
         maxRetriesPerRequest: null,
-    }
+    },
 );
 
 export const webhookQueue = new Queue('webhook-delivery', {
@@ -31,6 +31,7 @@ const worker = new Worker(
 
         try {
             console.log(`Processing Webhook: ${eventId}`);
+            console.log(`Sending webhook to: ${endpoint}`);
             const signature = crypto
                 .createHmac('sha256', secret)
                 .update(JSON.stringify(payload))
@@ -65,7 +66,7 @@ const worker = new Worker(
             throw error; // Triggers BullMQ retry
         }
     },
-    { connection }
+    { connection },
 );
 
 worker.on('failed', async (job, err) => {

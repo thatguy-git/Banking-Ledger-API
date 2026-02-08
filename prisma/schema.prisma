@@ -7,30 +7,28 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 1. THE ACCOUNT (The "Bucket")
 model Account {
-  id             String   @id @default(uuid())
-  accountNumber  String   @unique
-  email          String   @unique
-  name           String
-  currency       String
-  balance        BigInt
-  allowOverdraft Boolean  @default(false)
-  webhookUrl     String?
-  passwordHash       String   
-  transactionPin      String  
-  securityQuestion   String  
-  securityAnswerHash String   
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  sentTransfers     Transaction[] @relation("sender")
-  receivedTransfers Transaction[] @relation("receiver")
-  entries           Entry[]
-  apiKeys           ApiKey[]
-  invoices          Invoice[]
+  id                 String        @id @default(uuid())
+  accountNumber      String        @unique
+  email              String        @unique
+  name               String
+  currency           String
+  balance            BigInt
+  allowOverdraft     Boolean       @default(false)
+  passwordHash       String
+  transactionPin     String
+  securityQuestion   String
+  securityAnswerHash String
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  webhookUrl         String?
+  apiKeys            ApiKey[]
+  entries            Entry[]
+  invoices           Invoice[]
+  sentTransfers      Transaction[] @relation("sender")
+  receivedTransfers  Transaction[] @relation("receiver")
 }
 
-// 2. THE TRANSACTION (The "Receipt")
 model Transaction {
   id             String   @id @default(uuid())
   reference      String
@@ -38,70 +36,66 @@ model Transaction {
   targetCurrency String?
   exchangeRate   Float?   @default(1.0)
   description    String?
-  amount         BigInt   
-  fromAccount   Account @relation("sender", fields: [fromAccountId], references: [id])
-  fromAccountId String
-  toAccount     Account @relation("receiver", fields: [toAccountId], references: [id])
-  toAccountId   String
+  fromAccountId  String
+  toAccountId    String
   status         TxStatus @default(POSTED)
-  type           String?
   idempotencyKey String?  @unique
-  entries        Entry[]
   createdAt      DateTime @default(now())
+  type           String?
+  amount         BigInt
+  entries        Entry[]
+  fromAccount    Account  @relation("sender", fields: [fromAccountId], references: [id])
+  toAccount      Account  @relation("receiver", fields: [toAccountId], references: [id])
 }
 
-// 3. THE ENTRY (The "Movement")
 model Entry {
   id            String      @id @default(uuid())
   amount        BigInt
   accountId     String
-  account       Account     @relation(fields: [accountId], references: [id])
   transactionId String
-  transaction   Transaction @relation(fields: [transactionId], references: [id])
   createdAt     DateTime    @default(now())
-  
+  account       Account     @relation(fields: [accountId], references: [id])
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+
   @@index([accountId])
 }
 
-// 4. API KEY (For External Service Access)
 model ApiKey {
-  id        String   @id @default(uuid())
-  key       String   @unique
+  id        String    @id @default(uuid())
+  key       String    @unique
   accountId String
-  account   Account  @relation(fields: [accountId], references: [id])
-  name      String?  
-  createdAt DateTime @default(now())
+  name      String?
+  createdAt DateTime  @default(now())
   expiresAt DateTime?
+  account   Account   @relation(fields: [accountId], references: [id])
 }
 
-// 5. INVOICE
 model Invoice {
-  id                String   @id @default(uuid())
-  reference         String   @unique
+  id                String        @id @default(uuid())
+  reference         String        @unique
   amount            BigInt
-  description       String
   status            InvoiceStatus @default(PENDING)
-  webhookUrl        String   @default("https://default-webhook.example.com")
   creditorAccountId String
-  creditorAccount   Account  @relation(fields: [creditorAccountId], references: [id])
-  expiresAt         DateTime? 
   paidAt            DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  description       String
+  expiresAt         DateTime?
+  webhookUrl        String        @default("https://default-webhook.example.com")
+  creditorAccount   Account       @relation(fields: [creditorAccountId], references: [id])
 
   @@index([status])
 }
 
 model WebhookEvent {
-  id        String   @id @default(uuid())
-  // Who are we sending this to?
+  id        String        @id @default(uuid())
   endpoint  String
   payload   Json
   status    WebhookStatus @default(PENDING)
   attempts  Int           @default(0)
-  lastError String? 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  lastError String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   @@index([status])
 }
@@ -112,7 +106,6 @@ enum WebhookStatus {
   COMPLETED
   FAILED
 }
-
 
 enum TxStatus {
   PENDING

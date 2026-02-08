@@ -1,0 +1,2 @@
+- [ ] Add logging in webhook.queue.ts to output the endpoint URL before sending the request
+- [ ] Add validation in invoice.service.ts to ensure webhookUrl is a valid URL during invoice creation

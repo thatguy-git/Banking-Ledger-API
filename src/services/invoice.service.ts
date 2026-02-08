@@ -54,6 +54,17 @@ export class InvoiceService {
             throw new Error('Please write a description for the invoice');
         }
 
+        if (!webhookUrl) {
+            throw new Error('Webhook URL is required');
+        }
+
+        // Validate webhookUrl is a valid URL
+        try {
+            new URL(webhookUrl);
+        } catch {
+            throw new Error('Invalid webhook URL format');
+        }
+
         if (!reference) {
             const reference = input.reference || `REF-${uuidv4()}`;
         }
