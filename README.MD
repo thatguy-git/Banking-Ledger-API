@@ -1,14 +1,12 @@
 Banking Ledger API
 A robust, double-entry banking system API built with Node.js, TypeScript, and Prisma. This system handles multi-currency transfers, real-time exchange rates, and ensures financial integrity using ACID transactions.
 
-Live Demo: [Add your Render URL here]
-
 FEATURES
 Double-Entry Ledger: Every transaction records balanced debit and credit entries.
 
 Idempotency: Prevents accidental double-charges using unique keys (Strict Mode).
 
-Multi-Currency: Auto-converts funds (e.g., USD → EUR) using live market rates.
+Multi-Currency: Auto-converts funds (e.g., USD → EUR) using live market rates. P.S Available rates are dependent on currencies supported from frankfurter rate API. 
 
 Transaction Limits: Enforces a maximum amount limit per single transaction to prevent large unauthorized withdrawals.
 
